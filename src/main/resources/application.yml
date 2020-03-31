@@ -1,0 +1,11 @@
+tomey:
+  width: X(Width)=
+  height: Y(Height)=
+  depth: Z(Depth)=
+  patient:
+    id: Patient ID=
+    firstName: First name=
+    lastName: Family Name=
+    birthday: Date of Birth=
+    eye: Eye=
+    commentary: Description=

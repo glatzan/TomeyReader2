@@ -8,16 +8,23 @@ import org.springframework.boot.ExitCodeGenerator
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import picocli.CommandLine
+import kotlin.system.exitProcess
 
 @SpringBootApplication
-class TomeyReader @Autowired constructor(private var settings: CmdSettings, private var factory: CommandLine.IFactory) : CommandLineRunner, ExitCodeGenerator {
+class TomeyReader @Autowired constructor(
+        private val fileTagSettings: FileTagSettings) : CommandLineRunner, ExitCodeGenerator {
 
     private val logger: Logger = LoggerFactory.getLogger(this.javaClass)
+
+    private var settings: CmdSettings = CmdSettings()
 
     private var exitCode = 0
 
     override fun run(vararg args: String?) {
-        exitCode = CommandLine(settings, factory).execute(*args)
+        CommandLine(settings).parseArgs(*args)
+
+        println("hallo")
+        println(settings.dataFolder)
     }
 
     override fun getExitCode(): Int {
@@ -26,5 +33,5 @@ class TomeyReader @Autowired constructor(private var settings: CmdSettings, priv
 }
 
 fun main(args: Array<String>) {
-    System.exit(SpringApplication.exit(SpringApplication.run(TomeyReader::class.java, *args)))
+    exitProcess(SpringApplication.exit(SpringApplication.run(TomeyReader::class.java, *args)))
 }
