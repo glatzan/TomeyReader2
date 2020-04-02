@@ -1,7 +1,12 @@
 tomey:
   width: X(Width)=
-  height: Y(Height)=
-  depth: Z(Depth)=
+  height: Z(Depth)=
+  imageCount: Y(Height)=
+  bytesPerPixel: VoxelBits=
+  fileName: FILESTOREFILENAME1=
+  fileName2: FILESTOREFILENAME2=
+  imageOffset: 232
+  targetImageFormat: png
   patient:
     id: Patient ID=
     firstName: First name=

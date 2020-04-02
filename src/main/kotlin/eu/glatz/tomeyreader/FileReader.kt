@@ -10,16 +10,49 @@ import java.io.FileFilter
 import java.nio.file.Files
 import javax.imageio.ImageIO
 
-class Reader(private val settings: CmdSettings, private val fileSettings: FileTagSettings) {
+class FileReader(private val settings: Settings, private val fileSettings: FileTagSettings, private val postProcessor: PostProcessor? = null) {
 
-
-    fun getFiles(): Array<File> {
-        val base = File(settings.dataFolder)
-        val files = base.listFiles(FileFilter { x -> x.endsWith(settings.fileExtensions) })
-        return files
+    fun run() {
+        val files = getFiles(File(settings.dataFolder), settings.fileExtensions)
+        validateInputOutput(files)
+        readFiles(files)
     }
 
-    fun validateInputOutpu(files: Array<File>) {
+    private fun readFiles(files: Array<File>) {
+        files.forEach { readFile(it) }
+    }
+
+    private fun readFile(file: File) {
+
+        val copyArray = ByteArray(settings.imageSize)
+        val imageArray = IntArray(copyArray.size / settings.bytesPerPixel)
+        val resultIMG = BufferedImage(settings.xResolution, settings.yResolution, 11)
+
+        val bytes = readByteArray(file)
+        val offset = if (settings.startOffset == -1)
+            findImageStart(bytes)
+        else
+            settings.startOffset
+
+        var imageCount = 0
+        var imageOffset = offset
+
+        while ((imageOffset + settings.imageSize) < bytes.size && imageCount < settings.imageCount) {
+            val imageBytes = readNextImage(imageOffset, settings.imageSize, bytes, copyArray)
+            val resultImg = byteArrayToImage(imageBytes, imageArray, resultIMG, settings.bytesPerPixel)
+
+            val targetFile = getTargetFile(imageCount, file, ".${fileSettings.targetImageFormat}")
+
+            writeImage(targetFile, resultIMG)
+
+            imageOffset += settings.imageSize
+            imageCount++
+        }
+
+        postProcessor?.run(File(settings.targetFolder))
+    }
+
+    private fun validateInputOutput(files: Array<File>) {
         require(!files.isNullOrEmpty()) { "No Files to process found!" }
 
         val target = File(settings.targetFolder)
@@ -30,47 +63,17 @@ class Reader(private val settings: CmdSettings, private val fileSettings: FileTa
             throw IllegalArgumentException("Target is no folder")
     }
 
-    fun readFile(file: File) {
-
-        val copyArray = ByteArray(settings.imageSize)
-        val imageArray = IntArray(copyArray.size / settings.bytesPerPixel)
-        val resultIMG = BufferedImage(settings.xResolution, settings.yResolution, 11)
-
-        val bytes = read(file)
-        val offset = if (settings.startOffset == -1)
-            findStartOffset(bytes)
-        else
-            settings.startOffset
-
-        var imageCount = 0
-        var imageOffset = offset
-
-        while ((imageOffset + settings.imageSize) < bytes.size && imageCount < settings.maxImageCount) {
-            val imageBytes = readNextImage(imageOffset, settings.imageSize, bytes, copyArray)
-            val resultImg = byteArrayToImage(imageBytes, imageArray, resultIMG, settings.bytesPerPixel)
-
-            val targetFile = getTargetFile(imageCount, file, ".png")
-
-            writeImage(targetFile, resultIMG)
-
-            imageOffset += settings.imageSize
-            imageCount++
-        }
-
-
-    }
-
-
-    private fun read(file: File): ByteArray {
+    private fun readByteArray(file: File): ByteArray {
         return Files.readAllBytes(file.toPath())
     }
 
-    private fun findStartOffset(arr: ByteArray): Int {
-
-    }
-
-    private fun findImageStart(byteContent: ByteArray){
-
+    private fun findImageStart(byteContent: ByteArray): Int {
+        val fileName = findTag(fileSettings.fileName, fileSettings.lineBreak, byteContent, 0)
+        val imageOffset = findOffset(fileName.second + fileSettings.nullChar + fileSettings.nullChar, byteContent, fileName.first)
+        if (imageOffset != -1)
+            return imageOffset + fileSettings.imageOffset - 2
+        else
+            throw IllegalStateException("Image Offset not fount!")
     }
 
     private fun findTag(prefix: String, suffix: String, byteContent: ByteArray, startOffset: Int): Pair<Int, String> {
@@ -165,4 +168,9 @@ class Reader(private val settings: CmdSettings, private val fileSettings: FileTa
         ImageIO.write(img, "png", target)
     }
 
+    companion object {
+        fun getFiles(baseFolder: File, fileExtension: String): Array<File> {
+            return baseFolder.listFiles(FileFilter { x -> x.endsWith(fileExtension) }) ?: emptyArray()
+        }
+    }
 }

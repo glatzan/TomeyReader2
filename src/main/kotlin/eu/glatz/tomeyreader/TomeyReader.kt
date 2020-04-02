@@ -16,15 +16,15 @@ class TomeyReader @Autowired constructor(
 
     private val logger: Logger = LoggerFactory.getLogger(this.javaClass)
 
-    private var settings: CmdSettings = CmdSettings()
+    private var settings: Settings = Settings()
 
     private var exitCode = 0
 
     override fun run(vararg args: String?) {
         CommandLine(settings).parseArgs(*args)
-
-        println("hallo")
-        println(settings.dataFolder)
+        settings.validate()
+        val reader = FileReader(settings,fileTagSettings)
+        reader.run()
     }
 
     override fun getExitCode(): Int {
