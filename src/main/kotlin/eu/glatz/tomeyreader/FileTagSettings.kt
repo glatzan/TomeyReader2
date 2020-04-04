@@ -9,10 +9,16 @@ class FileTagSettings {
 
     lateinit var width: String
     lateinit var height: String
-    lateinit var depth: String
     lateinit var fileName: String
     lateinit var fileName2: String
-    var imageOffset = 232
+    lateinit var imageCount: String
+    lateinit var bitsPerPixel: String
+
+    /**
+     * Offset from fileName to image start
+     */
+    var imageOffset: Int = 0
+
 
     var patient: Patient = Patient()
 

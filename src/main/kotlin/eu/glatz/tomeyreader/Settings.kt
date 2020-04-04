@@ -21,16 +21,16 @@ class Settings {
     var createNewDirForFile: Boolean = true
 
     @CommandLine.Option(names = arrayOf("-x"), description = arrayOf("x Resolution"))
-    var xResolution = 512
+    var xResolution = -1
 
     @CommandLine.Option(names = arrayOf("-y"), description = arrayOf("Y Resolution"))
-    var yResolution = 900
+    var yResolution = -1
 
-    @CommandLine.Option(names = arrayOf("-z"), description = arrayOf("Image count"))
-    var imageCount = 256
+    @CommandLine.Option(names = arrayOf("-imageCount"), description = arrayOf("Image count"))
+    var imageCount = -1
 
     @CommandLine.Option(names = arrayOf("-z"), description = arrayOf("Pixel Depth"))
-    var bytesPerPixel = 2
+    var bytesPerPixel = -1
 
     @CommandLine.Option(names = arrayOf("-offset"), description = arrayOf("FileOffset"))
     var startOffset = -1
@@ -38,11 +38,8 @@ class Settings {
     @CommandLine.Option(names = arrayOf("-macro"), description = arrayOf("Macro for postprocessing"))
     var postProcessMacro: String = ""
 
-    @CommandLine.Option(names = arrayOf("-imagejPlugins"), description = arrayOf("Macro for postprocessing"))
+    @CommandLine.Option(names = arrayOf("-postPlugins"), description = arrayOf("Macro for postprocessing"))
     var postProcessPluginDir: String = ""
-
-    val imageSize: Int
-        get() = xResolution * yResolution * bytesPerPixel
 
     val runDirectory: String
         get() {
@@ -50,32 +47,37 @@ class Settings {
             return URLDecoder.decode(path, "UTF-8")
         }
 
+
+    val getAbsoluteDataFolder: File
+        get() {
+            return if (!File(dataFolder).isAbsolute)
+                File(runDirectory, dataFolder)
+            else
+                File(dataFolder)
+        }
+
+    val getAbsoluteTargetFolder: File
+        get() {
+            return if (!File(targetFolder).isAbsolute)
+                File(runDirectory, targetFolder)
+            else
+                File(targetFolder)
+        }
+
     fun validate(): Boolean {
-        var dataSource = File(dataFolder)
 
-        if (!dataSource.isAbsolute)
-            dataSource = File(runDirectory, dataFolder)
+        require(getAbsoluteDataFolder.isDirectory) { "Source folder not valid! ${dataFolder}" }
 
-        if (!dataSource.isDirectory)
-            throw IllegalArgumentException("Source folder not valid! ${dataSource.path}")
+        require(!(fileExtensions.isEmpty() || !fileExtensions.matches(Regex("\\..*")))) { "File-Extension not valid, must match .xxxx is ${fileExtensions} " }
 
-        if (fileExtensions.isEmpty() || fileExtensions.matches(Regex("\\..*")))
-            throw IllegalArgumentException("File-Extension not valid, must match .xxxx is ${fileExtensions} ")
+        if (!getAbsoluteTargetFolder.isDirectory)
+            require(getAbsoluteTargetFolder.mkdirs()) { "Target folder not valid! ${targetFolder}" }
 
-        var target = File(targetFolder)
+        require(!(postProcessMacro.isNotEmpty() && !File(postProcessMacro).isFile)) { "Makro not found: $postProcessMacro" }
 
-        if (!target.isAbsolute)
-            target = File(runDirectory, targetFolder)
-
-        if (!target.isDirectory)
-            throw IllegalArgumentException("Source folder not valid! ${target.path}")
-
-        if (postProcessMacro.isNotEmpty() && !File(postProcessMacro).isFile)
-            throw IllegalArgumentException("Makro not found: $postProcessMacro")
-
-        if(postProcessMacro.isNotEmpty() && postProcessPluginDir.isNotEmpty() && !File(postProcessPluginDir).isDirectory)
-            throw IllegalArgumentException("ImageJ Plugin dir ist not valid: $postProcessPluginDir")
+        require(!(postProcessMacro.isNotEmpty() && postProcessPluginDir.isNotEmpty() && !File(postProcessPluginDir).isDirectory)) { "ImageJ Plugin dir ist not valid: $postProcessPluginDir" }
 
         return true
     }
+
 }

@@ -7,6 +7,7 @@ import org.springframework.boot.CommandLineRunner
 import org.springframework.boot.ExitCodeGenerator
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.autoconfigure.SpringBootApplication
+import org.springframework.core.io.ResourceLoader
 import picocli.CommandLine
 import kotlin.system.exitProcess
 
@@ -21,10 +22,21 @@ class TomeyReader @Autowired constructor(
     private var exitCode = 0
 
     override fun run(vararg args: String?) {
-        CommandLine(settings).parseArgs(*args)
-        settings.validate()
-        val reader = FileReader(settings,fileTagSettings)
-        reader.run()
+        try {
+            CommandLine(settings).parseArgs(*args)
+            settings.validate()
+
+            var postProcessor : PostProcessor? = null
+
+            if(!settings.postProcessMacro.isEmpty()){
+                postProcessor = PostProcessor(settings,fileTagSettings)
+            }
+
+            val reader = FileReader(settings, fileTagSettings, postProcessor)
+            reader.run()
+        }catch (e : Exception){
+            e.printStackTrace()
+        }
     }
 
     override fun getExitCode(): Int {
@@ -33,5 +45,6 @@ class TomeyReader @Autowired constructor(
 }
 
 fun main(args: Array<String>) {
-    exitProcess(SpringApplication.exit(SpringApplication.run(TomeyReader::class.java, *args)))
+    //exitProcess(SpringApplication.exit(SpringApplication.run(TomeyReader::class.java, *args)))
+    SpringApplication.run(TomeyReader::class.java, *args)
 }

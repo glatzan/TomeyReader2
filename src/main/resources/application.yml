@@ -2,7 +2,7 @@ tomey:
   width: X(Width)=
   height: Z(Depth)=
   imageCount: Y(Height)=
-  bytesPerPixel: VoxelBits=
+  bitsPerPixel: VoxelBits=
   fileName: FILESTOREFILENAME1=
   fileName2: FILESTOREFILENAME2=
   imageOffset: 232
