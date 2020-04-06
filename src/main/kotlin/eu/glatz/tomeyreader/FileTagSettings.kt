@@ -4,15 +4,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.stereotype.Component
 
 @Component
-@ConfigurationProperties(prefix = "tomey")
-class FileTagSettings {
+@ConfigurationProperties(prefix = "tomey", ignoreInvalidFields = false, ignoreUnknownFields = false)
+open class FileTagSettings {
 
-    lateinit var width: String
-    lateinit var height: String
-    lateinit var fileName: String
-    lateinit var fileName2: String
-    lateinit var imageCount: String
-    lateinit var bitsPerPixel: String
+    var width: String = ""
+    var height: String = ""
+    var fileName: String = ""
+    var fileName2: String = ""
+    var imageCount: String = ""
+    var bitsPerPixel: String = ""
 
     /**
      * Offset from fileName to image start
@@ -22,15 +22,15 @@ class FileTagSettings {
 
     var patient: Patient = Patient()
 
-    lateinit var targetImageFormat: String
+    var targetImageFormat: String = ""
 
     class Patient {
-        lateinit var id: String
-        lateinit var firstName: String
-        lateinit var lastName: String
-        lateinit var birthday: String
-        lateinit var eye: String
-        lateinit var commentary: String
+        var id: String = ""
+        var firstName: String = ""
+        var lastName: String = ""
+        var birthday: String = ""
+        var eye: String = ""
+        var commentary: String = ""
     }
 
     final val nullChar = '\u0000'

@@ -5,12 +5,13 @@ import org.slf4j.LoggerFactory
 import java.awt.Point
 import java.awt.image.BufferedImage
 import java.awt.image.DataBuffer
-import java.awt.image.DataBufferInt
+import java.awt.image.DataBufferUShort
 import java.awt.image.Raster
 import java.io.File
 import java.io.FileFilter
 import java.nio.file.Files
 import javax.imageio.ImageIO
+import kotlin.experimental.or
 import kotlin.math.ceil
 
 class FileReader(private val settings: Settings, private val fileSettings: FileTagSettings, private val postProcessor: PostProcessor? = null) {
@@ -18,9 +19,10 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
     private val logger: Logger = LoggerFactory.getLogger(this.javaClass)
 
     fun run() {
+        logger.info("Loading files form ${settings.getAbsoluteDataFolder.path} with extension ${settings.fileExtensions}")
         val files = getFiles(settings.getAbsoluteDataFolder, settings.fileExtensions)
-        validateInputOutput(files)
-        readFiles(files)
+        if (validateInputOutput(files))
+            readFiles(files)
     }
 
     private fun readFiles(files: Array<File>) {
@@ -28,13 +30,23 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
     }
 
     private fun readFile(file: File) {
+        logger.info("Processing file: ${file.path}")
 
         val bytes = readByteArray(file)
         val imageSettings = getImageSettings(bytes)
 
+        if(imageSettings == null){
+            logger.error("Could not read or initialize Image settings for ${file.path}")
+            return
+        }else{
+            logger.info("Image settings for ${file.path} read")
+        }
+
+        imageSettings.print()
+
         val copyArray = ByteArray(imageSettings.imageSize)
-        val imageArray = IntArray(copyArray.size / imageSettings.bytesPerPixel)
-        val resultIMG = BufferedImage(imageSettings.xResolution, imageSettings.yResolution, 11)
+        val imageArray = ShortArray(copyArray.size / imageSettings.bytesPerPixel)
+        val resultIMG = BufferedImage(imageSettings.xResolution, imageSettings.yResolution, BufferedImage.TYPE_USHORT_GRAY)
 
         var imageCount = 0
         var imageOffset = imageSettings.startOffset
@@ -44,22 +56,22 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
         while ((imageOffset + imageSettings.imageSize) < bytes.size && imageCount < imageSettings.imageCount) {
 
             logger.info("Reading img ${imageCount + 1} of ${imageSettings.imageCount} from file: ${file.path}")
-//            val imageBytes = readNextImage(imageOffset, imageSettings.imageSize, bytes, copyArray)
-//            val resultImg = byteArrayToImage(imageBytes, imageArray, resultIMG, imageSettings.bytesPerPixel)
-//
+            val imageBytes = readNextImage(imageOffset, imageSettings.imageSize, bytes, copyArray)
+            val resultImg = byteArrayToImage(imageBytes, imageArray, resultIMG, imageSettings.bytesPerPixel)
+
             val targetFile = getTargetFile(imageCount, file, ".${fileSettings.targetImageFormat}")
             resultImgs.add(targetFile)
-//
-//            writeImage(targetFile, resultIMG)
-//
-//            imageOffset += imageSettings.imageSize
+
+            writeImage(targetFile, resultIMG)
+
+            imageOffset += imageSettings.imageSize
             imageCount++
         }
 
-        postProcessor?.run(resultImgs.toTypedArray())
+        postProcessor?.run(resultImgs.toTypedArray(), file)
     }
 
-    private fun getImageSettings(byteContent: ByteArray): ImageSettings {
+    private fun getImageSettings(byteContent: ByteArray): ImageSettings? {
         try {
             val result = ImageSettings()
             result.xResolution = if (settings.xResolution == -1) findTag(fileSettings.width, fileSettings.lineBreak, byteContent).second.toInt() else settings.xResolution
@@ -73,18 +85,31 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
 
             return result
         } catch (e: Exception) {
-            throw java.lang.IllegalStateException("Could not read or initialize Image settings")
+            logger.error("Error reading settings: ${e.message}")
+            return null
         }
     }
 
-    private fun validateInputOutput(files: Array<File>) {
-        require(!files.isNullOrEmpty()) { "No Files to process found!" }
+    private fun validateInputOutput(files: Array<File>): Boolean {
+        logger.info("Found ${files.size} files")
+
+        if (files.isNullOrEmpty()) {
+            logger.error("No Files to process found!")
+            return false
+        }
 
         val target = settings.getAbsoluteTargetFolder
 
         if (!target.exists())
             target.mkdirs()
-        else require(target.isDirectory) { "Target is no folder" }
+        else if (!target.isDirectory) {
+            logger.error("Target (${target.path}) is no folder")
+            return false
+        }
+
+        logger.info("Files ok..")
+
+        return true
     }
 
     private fun readByteArray(file: File): ByteArray {
@@ -158,7 +183,7 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
         return copyArray
     }
 
-    private fun byteArrayToImage(copyArray: ByteArray, targetArray: IntArray, img: BufferedImage, bytesPerPixel: Int): BufferedImage {
+    private fun byteArrayToImage(copyArray: ByteArray, targetArray: ShortArray, img: BufferedImage, bytesPerPixel: Int): BufferedImage {
 
         var byteArrayCounter = 0
         var byteArrayEmpty = false
@@ -173,13 +198,13 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
                         break
                     }
 
-                    targetArray[i] = targetArray[i] or (copyArray[byteArrayCounter].toUByte().toInt() shl y * 7)
+                    targetArray[i] = targetArray[i].or((copyArray[byteArrayCounter].toUByte().toInt() shl y * 7).toShort())
                     byteArrayCounter++
                 }
 
         }
 
-        img.data = Raster.createRaster(img.sampleModel, DataBufferInt(targetArray, targetArray.size) as DataBuffer, Point())
+        img.data = Raster.createRaster(img.sampleModel, DataBufferUShort(targetArray, targetArray.size) as DataBuffer, Point())
 
         return img
     }
@@ -197,6 +222,9 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
 
 
     class ImageSettings() {
+
+        private val logger: Logger = LoggerFactory.getLogger(this.javaClass)
+
         var xResolution = 0
 
         var yResolution = 0
@@ -209,5 +237,14 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
 
         val imageSize: Int
             get() = xResolution * yResolution * bytesPerPixel
+
+        fun print() {
+            logger.info("Image settings")
+            logger.info("xRes = $xResolution")
+            logger.info("yRes = $yResolution")
+            logger.info("imageCount = $imageCount")
+            logger.info("bytesPerPixel = $bytesPerPixel")
+            logger.info("startOffset = $startOffset")
+        }
     }
 }
