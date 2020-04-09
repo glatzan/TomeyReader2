@@ -32,13 +32,21 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
     private fun readFile(file: File) {
         logger.info("Processing file: ${file.path}")
 
+        val fileSize = Settings.toMByte(file.length());
+        val freeMem = Settings.toMByte(settings.freeMemory)
+
+        logger.info("Free memory: ${freeMem} MB, file size: ${fileSize} MB")
+
+        if(freeMem < fileSize)
+            throw IllegalStateException("Not enough free memory (Free memory: ${freeMem} MB, file size: ${fileSize} MB), please increase memory (-Xm1024m ")
+
         val bytes = readByteArray(file)
         val imageSettings = getImageSettings(bytes)
 
-        if(imageSettings == null){
+        if (imageSettings == null) {
             logger.error("Could not read or initialize Image settings for ${file.path}")
             return
-        }else{
+        } else {
             logger.info("Image settings for ${file.path} read")
         }
 
@@ -69,6 +77,8 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
         }
 
         postProcessor?.run(resultImgs.toTypedArray(), file)
+
+        System.gc()
     }
 
     private fun getImageSettings(byteContent: ByteArray): ImageSettings? {

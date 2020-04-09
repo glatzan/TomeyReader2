@@ -7,49 +7,55 @@ import picocli.CommandLine
 import java.io.File
 
 
-@CommandLine.Command(name = "settings", mixinStandardHelpOptions = true)
+@CommandLine.Command(name = "settings", mixinStandardHelpOptions = true, showAtFileInUsageHelp = true)
 class Settings {
 
     private val logger: Logger = LoggerFactory.getLogger(this.javaClass)
 
-    @CommandLine.Option(names = arrayOf("-sourceFolder"), description = arrayOf("Path containing .exame files"))
+    @CommandLine.Option(names = ["-sourceFolder", "-s"], description = ["Path containing .exam files"])
     var dataFolder: String = ""
 
-    @CommandLine.Option(names = arrayOf("-fileExtension"), description = arrayOf("Extension of exame files"))
+    @CommandLine.Option(names = ["-fileExtension"], description = ["Extension of .exam files; Default: .exam"])
     var fileExtensions: String = ".exam"
 
-    @CommandLine.Option(names = arrayOf("-targetFolder"), description = arrayOf("TargetFolder"))
+    @CommandLine.Option(names = ["-targetFolder", "-t"], description = ["TargetFolder for exported images "])
     var targetFolder: String = "export"
 
-    @CommandLine.Option(names = arrayOf("-d"), description = arrayOf("Create new dir for every exame file"))
+    @CommandLine.Option(names = ["-d"], description = ["Set to true if a new dir should be created for every exam file; Default: true"])
     var createNewDirForFile: Boolean = true
 
-    @CommandLine.Option(names = arrayOf("-x"), description = arrayOf("x Resolution"))
+    @CommandLine.Option(names = ["-x"], description = ["X Resolution of the image; Default: Autodetect"])
     var xResolution = -1
 
-    @CommandLine.Option(names = arrayOf("-y"), description = arrayOf("Y Resolution"))
+    @CommandLine.Option(names = ["-y"], description = ["Y Resolution of the image; Default: Autodetect"])
     var yResolution = -1
 
-    @CommandLine.Option(names = arrayOf("-imageCount"), description = arrayOf("Image count"))
+    @CommandLine.Option(names = ["-imageCount"], description = ["Total image count in exam file; Default: Autodetect"])
     var imageCount = -1
 
-    @CommandLine.Option(names = arrayOf("-z"), description = arrayOf("Pixel Depth"))
+    @CommandLine.Option(names = ["-z"], description = ["Pixel depth of images; Default: Autodetect"])
     var bytesPerPixel = -1
 
-    @CommandLine.Option(names = arrayOf("-offset"), description = arrayOf("FileOffset"))
+    @CommandLine.Option(names = ["-offset"], description = ["FileOffset of start image; Default: Autodetect"])
     var startOffset = -1
 
-    @CommandLine.Option(names = arrayOf("-macro"), description = arrayOf("Macro for postprocessing"))
+    @CommandLine.Option(names = ["-macro"], description = ["Macro for postprocessing"])
     var postProcessMacro: String = ""
 
-    @CommandLine.Option(names = arrayOf("-postPlugins"), description = arrayOf("Macro for postprocessing"))
+    @CommandLine.Option(names = ["-postPlugins"], description = ["Plugins for imagej postprocessing"])
     var postProcessPluginDir: String = ""
 
-    @CommandLine.Option(names = arrayOf("-postDir"), description = arrayOf("Postprocessing target dir"))
+    @CommandLine.Option(names = ["-postDir"], description = ["Postprocessing target dir"])
     var postProcessTargetDir: String = ""
 
-    @CommandLine.Option(names = arrayOf("-postCreatDir"), description = arrayOf("Create new subdir for image"))
+    @CommandLine.Option(names = ["-postCreatDir"], description = ["Create new directory for postprocessed files; Default: true"])
     var createNewPostDirForFile: Boolean = true
+
+    val freeMemory: Long
+        get() = Runtime.getRuntime().freeMemory()
+
+    var maxMemory: Long = 0
+        get() = Runtime.getRuntime().maxMemory()
 
     val runDirectory: String
         get() {
@@ -109,6 +115,12 @@ class Settings {
             return false
         }
         return true
+    }
+
+    companion object{
+        fun toMByte(bytes: Long): Long {
+            return bytes/(1024*1024)
+        }
     }
 
 }

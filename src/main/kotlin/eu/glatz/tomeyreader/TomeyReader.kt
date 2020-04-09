@@ -7,11 +7,9 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.Banner
 import org.springframework.boot.CommandLineRunner
 import org.springframework.boot.ExitCodeGenerator
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.runApplication
-import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.PropertySource
 import picocli.CommandLine
 
@@ -41,7 +39,13 @@ class TomeyReader @Autowired constructor(
         logger.info("Starting.. $stringValue")
         logger.info(fileTagSettings.fileName)
         try {
-            CommandLine(settings).parseArgs(*args)
+            val c = CommandLine(settings).parseArgs(*args)
+
+            if (c.isUsageHelpRequested) {
+                CommandLine(settings).usage(System.out)
+                exitCode = 0
+                return
+            }
 
             if (!settings.validate()) {
                 logger.error("Settings not valid")
@@ -50,6 +54,9 @@ class TomeyReader @Autowired constructor(
             } else {
                 logger.info("Settings initialized")
             }
+
+            logger.info("Max memory: ${Settings.toMByte(settings.maxMemory)} MB")
+            logger.info("Free memory: ${Settings.toMByte(settings.freeMemory)} MB")
 
             var postProcessor: PostProcessor? = null
 
