@@ -35,10 +35,10 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
         val fileSize = Settings.toMByte(file.length());
         val freeMem = Settings.toMByte(settings.freeMemory)
 
-        logger.info("Free memory: ${freeMem} MB, file size: ${fileSize} MB")
-
-        if(freeMem < fileSize)
-            throw IllegalStateException("Not enough free memory (Free memory: ${freeMem} MB, file size: ${fileSize} MB), please increase memory (-Xm1024m ")
+//        logger.info("Free memory: ${freeMem} MB, file size: ${fileSize} MB")
+//
+//        if(freeMem < fileSize)
+//            throw IllegalStateException("Not enough free memory (Free memory: ${freeMem} MB, file size: ${fileSize} MB), please increase memory (-Xm1024m ")
 
         val bytes = readByteArray(file)
         val imageSettings = getImageSettings(bytes)
