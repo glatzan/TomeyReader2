@@ -13,6 +13,9 @@ open class FileTagSettings {
     var fileName2: String = ""
     var imageCount: String = ""
     var bitsPerPixel: String = ""
+    var xSizeInMM: String = ""
+    var ySizeInMM: String = ""
+    var zSizePerPixel: String = ""
 
     /**
      * Offset from fileName to image start

@@ -51,6 +51,9 @@ class Settings {
     @CommandLine.Option(names = ["-postCreatDir"], description = ["Create new directory for postprocessed files; Default: true"])
     var createNewPostDirForFile: Boolean = true
 
+    @CommandLine.Option(names = ["-additionData"], description = ["Saves additional image data; Default: true"])
+    var saveInfoFile: Boolean = true
+
     val freeMemory: Long
         get() = Runtime.getRuntime().freeMemory()
 

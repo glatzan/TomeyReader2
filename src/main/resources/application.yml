@@ -7,6 +7,9 @@ tomey:
   fileName2: FILESTOREFILENAME2=
   imageOffset: 232
   targetImageFormat: png
+  xSizeInMM: X range in V=
+  ySizeInMM: Y range in V=
+  zSizePerPixel: MmPerPixZ=
   patient:
     id: Patient ID=
     firstName: First name=

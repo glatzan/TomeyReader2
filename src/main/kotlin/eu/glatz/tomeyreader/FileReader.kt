@@ -1,5 +1,6 @@
 package eu.glatz.tomeyreader
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.awt.Point
@@ -13,6 +14,7 @@ import java.nio.file.Files
 import javax.imageio.ImageIO
 import kotlin.experimental.or
 import kotlin.math.ceil
+
 
 class FileReader(private val settings: Settings, private val fileSettings: FileTagSettings, private val postProcessor: PostProcessor? = null) {
 
@@ -65,7 +67,7 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
 
             logger.info("Reading img ${imageCount + 1} of ${imageSettings.imageCount} from file: ${file.path}")
             val imageBytes = readNextImage(imageOffset, imageSettings.imageSize, bytes, copyArray)
-            val resultImg = byteArrayToImage(imageBytes, imageArray, resultIMG, imageSettings.bytesPerPixel)
+            byteArrayToImage(imageBytes, imageArray, resultIMG, imageSettings.bytesPerPixel)
 
             val targetFile = getTargetFile(imageCount, file, ".${fileSettings.targetImageFormat}")
             resultImgs.add(targetFile)
@@ -77,6 +79,11 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
         }
 
         postProcessor?.run(resultImgs.toTypedArray(), file)
+
+        if (settings.saveInfoFile) {
+            val infoFile = File(settings.getAbsoluteTargetFolder, file.name.substringBeforeLast(".") + ".json")
+            ObjectMapper().writeValue(infoFile, imageSettings)
+        }
 
         System.gc()
     }
@@ -92,7 +99,18 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
                 (ceil(bitsPerPixel / 8)).toInt()
             } else settings.bytesPerPixel
             result.startOffset = if (settings.startOffset == -1) findImageStart(byteContent) else settings.startOffset
-
+            val xWidthInMM = findTag(fileSettings.xSizeInMM, fileSettings.lineBreak, byteContent).second.toDouble()
+            val yWithInMm = findTag(fileSettings.ySizeInMM, fileSettings.lineBreak, byteContent).second.toDouble()
+            result.xMMperPixel = xWidthInMM / result.xResolution
+            // if images is 90° rotated
+            result.yMMperPixel = yWithInMm / result.xResolution
+            result.zMMperPixel = findTag(fileSettings.zSizePerPixel, fileSettings.lineBreak, byteContent).second.toDouble()
+            result.patient.id = findTag(fileSettings.patient.id, fileSettings.lineBreak, byteContent).second
+            result.patient.firstName = findTag(fileSettings.patient.firstName, fileSettings.lineBreak, byteContent).second
+            result.patient.lastName = findTag(fileSettings.patient.lastName, fileSettings.lineBreak, byteContent).second
+            result.patient.birthday = findTag(fileSettings.patient.birthday, fileSettings.lineBreak, byteContent).second
+            result.patient.eye = findTag(fileSettings.patient.eye, fileSettings.lineBreak, byteContent).second
+            result.patient.commentary = findTag(fileSettings.patient.commentary, fileSettings.lineBreak, byteContent).second
             return result
         } catch (e: Exception) {
             logger.error("Error reading settings: ${e.message}")
@@ -245,6 +263,26 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
 
         var startOffset = 0
 
+        /**
+         * Image width mm per pixel
+         */
+        var xMMperPixel: Double = 0.0
+
+        /**
+         * Image width Y, not used
+         */
+        var yMMperPixel: Double = 0.0
+
+        /**
+         * Image height mm per pixel
+         */
+        var zMMperPixel: Double = 0.0
+
+        /**
+         * Patient
+         */
+        val patient = Patient()
+
         val imageSize: Int
             get() = xResolution * yResolution * bytesPerPixel
 
@@ -255,6 +293,15 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
             logger.info("imageCount = $imageCount")
             logger.info("bytesPerPixel = $bytesPerPixel")
             logger.info("startOffset = $startOffset")
+        }
+
+        class Patient {
+            var id: String = ""
+            var firstName: String = ""
+            var lastName: String = ""
+            var birthday: String = ""
+            var eye: String = ""
+            var commentary: String = ""
         }
     }
 }
