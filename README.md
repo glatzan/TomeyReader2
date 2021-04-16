@@ -8,6 +8,8 @@ Maven build
  
 ## Usage
 
+java -Xmx2048m -jar tomeyreader-2.0.jar -s $source_dir -t $target_dir -d=false
+
 * -sourceFolder \{path\} or -s \{path\} 
     * Path pointing to .exam files
 * -fileExtension \{string\}
