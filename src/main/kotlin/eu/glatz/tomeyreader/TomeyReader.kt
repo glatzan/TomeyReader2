@@ -73,11 +73,11 @@ class TomeyReader @Autowired constructor(
 
             val reader = FileReader(settings, fileTagSettings, postProcessor)
             reader.run()
-        }catch (e : Exception) {
+        } catch (e: Exception) {
             logger.error("Execution failed: ${e.message}")
             exitCode = 1
             return
-        }catch (e: Throwable){
+        } catch (e: Throwable) {
             logger.error("Execution failed: ${e.message}")
             exitCode = 1
             return
@@ -91,12 +91,10 @@ class TomeyReader @Autowired constructor(
 }
 
 fun main(args: Array<String>) {
-    //exitProcess(SpringApplication.exit(SpringApplication.run(TomeyReader::class.java, *args)))
     runApplication<TomeyReader>(*args) {
         setHeadless(false)
         setBannerMode(Banner.Mode.OFF)
     }
-//    SpringApplication.run(TomeyReader::class.java, *args)
 }
 
 

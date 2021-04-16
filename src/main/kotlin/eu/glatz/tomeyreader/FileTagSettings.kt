@@ -5,7 +5,7 @@ import org.springframework.stereotype.Component
 
 @Component
 @ConfigurationProperties(prefix = "tomey", ignoreInvalidFields = false, ignoreUnknownFields = false)
-open class FileTagSettings {
+class FileTagSettings {
 
     var width: String = ""
     var height: String = ""
@@ -16,6 +16,8 @@ open class FileTagSettings {
     var xSizeInMM: String = ""
     var ySizeInMM: String = ""
     var zSizePerPixel: String = ""
+    var examinationDate: String = ""
+    var examinationTime: String = ""
 
     /**
      * Offset from fileName to image start

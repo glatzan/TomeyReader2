@@ -10,6 +10,8 @@ tomey:
   xSizeInMM: X range in V=
   ySizeInMM: Y range in V=
   zSizePerPixel: MmPerPixZ=
+  examinationDate: Date=
+  examinationTime: Time=
   patient:
     id: Patient ID=
     firstName: First name=

@@ -54,6 +54,10 @@ class Settings {
     @CommandLine.Option(names = ["-additionData"], description = ["Saves additional image data; Default: true"])
     var saveInfoFile: Boolean = true
 
+    @CommandLine.Option(names = ["-onlyAdditionData"], description = ["Saves only addtional data, does not export images; Default: true"])
+    var onlyAdditionalData: Boolean = false
+
+
     val freeMemory: Long
         get() = Runtime.getRuntime().freeMemory()
 
@@ -63,7 +67,7 @@ class Settings {
     val runDirectory: String
         get() {
             val home = ApplicationHome(Settings::class.java)
-            return home.dir.absolutePath;
+            return home.dir.absolutePath
         }
 
     val getAbsoluteDataFolder: File
@@ -120,9 +124,9 @@ class Settings {
         return true
     }
 
-    companion object{
+    companion object {
         fun toMByte(bytes: Long): Long {
-            return bytes/(1024*1024)
+            return bytes / (1024 * 1024)
         }
     }
 

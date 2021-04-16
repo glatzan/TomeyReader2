@@ -10,6 +10,7 @@ import java.awt.image.DataBufferUShort
 import java.awt.image.Raster
 import java.io.File
 import java.io.FileFilter
+import java.nio.charset.Charset
 import java.nio.file.Files
 import javax.imageio.ImageIO
 import kotlin.experimental.or
@@ -34,7 +35,7 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
     private fun readFile(file: File) {
         logger.info("Processing file: ${file.path}")
 
-        val fileSize = Settings.toMByte(file.length());
+        val fileSize = Settings.toMByte(file.length())
         val freeMem = Settings.toMByte(settings.freeMemory)
 
 //        logger.info("Free memory: ${freeMem} MB, file size: ${fileSize} MB")
@@ -61,26 +62,30 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
         var imageCount = 0
         var imageOffset = imageSettings.startOffset
 
-        val resultImgs = mutableListOf<File>()
+        if (!settings.onlyAdditionalData) {
+            val resultImgs = mutableListOf<File>()
 
-        while ((imageOffset + imageSettings.imageSize) < bytes.size && imageCount < imageSettings.imageCount) {
+            while ((imageOffset + imageSettings.imageSize) < bytes.size && imageCount < imageSettings.imageCount) {
 
-            logger.info("Reading img ${imageCount + 1} of ${imageSettings.imageCount} from file: ${file.path}")
-            val imageBytes = readNextImage(imageOffset, imageSettings.imageSize, bytes, copyArray)
-            byteArrayToImage(imageBytes, imageArray, resultIMG, imageSettings.bytesPerPixel)
+                logger.info("Reading img ${imageCount + 1} of ${imageSettings.imageCount} from file: ${file.path}")
+                val imageBytes = readNextImage(imageOffset, imageSettings.imageSize, bytes, copyArray)
+                byteArrayToImage(imageBytes, imageArray, resultIMG, imageSettings.bytesPerPixel)
 
-            val targetFile = getTargetFile(imageCount, file, ".${fileSettings.targetImageFormat}")
-            resultImgs.add(targetFile)
+                val targetFile = getTargetFile(imageCount, file, ".${fileSettings.targetImageFormat}")
+                resultImgs.add(targetFile)
 
-            writeImage(targetFile, resultIMG)
+                writeImage(targetFile, resultIMG)
 
-            imageOffset += imageSettings.imageSize
-            imageCount++
+                imageOffset += imageSettings.imageSize
+                imageCount++
+            }
+
+            postProcessor?.run(resultImgs.toTypedArray(), file)
+        } else {
+            logger.info("Exporting only additional data, no image export!")
         }
 
-        postProcessor?.run(resultImgs.toTypedArray(), file)
-
-        if (settings.saveInfoFile) {
+        if (settings.saveInfoFile || settings.onlyAdditionalData) {
             val infoFile = File(settings.getAbsoluteTargetFolder, file.name.substringBeforeLast(".") + ".json")
             ObjectMapper().writeValue(infoFile, imageSettings)
         }
@@ -105,6 +110,8 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
             // if images is 90° rotated
             result.yMMperPixel = yWithInMm / result.xResolution
             result.zMMperPixel = findTag(fileSettings.zSizePerPixel, fileSettings.lineBreak, byteContent).second.toDouble()
+            result.examinationDate = findTag(fileSettings.examinationDate, fileSettings.lineBreak, byteContent).second
+            result.examinationTime = findTag(fileSettings.examinationTime, fileSettings.lineBreak, byteContent).second
             result.patient.id = findTag(fileSettings.patient.id, fileSettings.lineBreak, byteContent).second
             result.patient.firstName = findTag(fileSettings.patient.firstName, fileSettings.lineBreak, byteContent).second
             result.patient.lastName = findTag(fileSettings.patient.lastName, fileSettings.lineBreak, byteContent).second
@@ -158,23 +165,23 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
 
         require(tagIndex != -1) { "Tag not Found: ${prefix}" }
 
-        val tagContent = StringBuffer()
+        val tagContent = mutableListOf<Byte>()
         var suffixCount = 0
 
         for (i in tagIndex + 1 until byteContent.size) {
             if (byteContent[i].toChar() == suffix[suffixCount]) {
                 if (suffixCount == suffix.length - 1) {
-                    return Pair(i, tagContent.toString())
+                    return Pair(i, String(tagContent.toByteArray(), Charset.forName("Cp1252")))
                 }
 
                 suffixCount++
             } else {
                 suffixCount = 0
-                tagContent.append(byteContent[i].toChar())
+                tagContent.add(byteContent[i])
             }
         }
 
-        return Pair(-1, tagContent.toString())
+        return Pair(-1, String(tagContent.toByteArray(), Charset.forName("Cp1252")))
     }
 
     private fun findOffset(searchTag: String, byteContent: ByteArray, startOffset: Int = 0): Int {
@@ -249,7 +256,7 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
     }
 
 
-    class ImageSettings() {
+    class ImageSettings {
 
         private val logger: Logger = LoggerFactory.getLogger(this.javaClass)
 
@@ -278,6 +285,10 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
          */
         var zMMperPixel: Double = 0.0
 
+        var examinationDate: String = ""
+
+        var examinationTime: String = ""
+
         /**
          * Patient
          */
@@ -293,6 +304,8 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
             logger.info("imageCount = $imageCount")
             logger.info("bytesPerPixel = $bytesPerPixel")
             logger.info("startOffset = $startOffset")
+            logger.info("patient.name = ${patient.lastName}")
+            logger.info("patient.surname = ${patient.firstName}")
         }
 
         class Patient {

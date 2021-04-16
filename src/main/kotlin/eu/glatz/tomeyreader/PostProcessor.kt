@@ -1,7 +1,6 @@
 package eu.glatz.tomeyreader
 
 import ij.IJ
-import ij.io.Opener
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -11,7 +10,7 @@ class PostProcessor(private val settings: Settings, private val fileSettings: Fi
 
     private val logger: Logger = LoggerFactory.getLogger(this.javaClass)
 
-    lateinit var postSettings : PostProcessorSettings
+    lateinit var postSettings: PostProcessorSettings
 
     fun run(extractedImageFiles: Array<File>, sourceFile: File): Boolean {
         for (imgFile in extractedImageFiles) {
