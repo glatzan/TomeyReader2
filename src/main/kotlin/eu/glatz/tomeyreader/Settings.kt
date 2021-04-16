@@ -18,43 +18,43 @@ class Settings {
     @CommandLine.Option(names = ["-fileExtension"], description = ["Extension of .exam files; Default: .exam"])
     var fileExtensions: String = ".exam"
 
-    @CommandLine.Option(names = ["-targetFolder", "-t"], description = ["TargetFolder for exported images "])
+    @CommandLine.Option(names = ["-targetFolder", "-t"], description = ["Target folder for extracted images"])
     var targetFolder: String = "export"
 
-    @CommandLine.Option(names = ["-d"], description = ["Set to true if a new dir should be created for every exam file; Default: true"])
+    @CommandLine.Option(names = ["-d"], description = ["Set to true if a new subdirectory within the target folder should be created for every exam file; Default: true"])
     var createNewDirForFile: Boolean = true
 
-    @CommandLine.Option(names = ["-x"], description = ["X Resolution of the image; Default: Autodetect"])
+    @CommandLine.Option(names = ["-x"], description = ["Width of extracted images within the exam file; Default: Autodetect"])
     var xResolution = -1
 
-    @CommandLine.Option(names = ["-y"], description = ["Y Resolution of the image; Default: Autodetect"])
+    @CommandLine.Option(names = ["-y"], description = ["Height of extracted images within the exam file; Default: Autodetect"])
     var yResolution = -1
 
-    @CommandLine.Option(names = ["-imageCount"], description = ["Total image count in exam file; Default: Autodetect"])
+    @CommandLine.Option(names = ["-imageCount"], description = ["Total number of images within the exam file; Default: Autodetect"])
     var imageCount = -1
 
-    @CommandLine.Option(names = ["-z"], description = ["Pixel depth of images; Default: Autodetect"])
+    @CommandLine.Option(names = ["-z"], description = ["Pixel depth of an image; Default: Autodetect"])
     var bytesPerPixel = -1
 
-    @CommandLine.Option(names = ["-offset"], description = ["FileOffset of start image; Default: Autodetect"])
+    @CommandLine.Option(names = ["-offset"], description = ["Starting position of the first image within the exam file; Default: Autodetect"])
     var startOffset = -1
 
-    @CommandLine.Option(names = ["-macro"], description = ["Macro for postprocessing"])
+    @CommandLine.Option(names = ["-macro"], description = ["Imagej macro for postprocessing of extracted images"])
     var postProcessMacro: String = ""
 
     @CommandLine.Option(names = ["-postPlugins"], description = ["Plugins for imagej postprocessing"])
     var postProcessPluginDir: String = ""
 
-    @CommandLine.Option(names = ["-postDir"], description = ["Postprocessing target dir"])
+    @CommandLine.Option(names = ["-postDir"], description = ["Target folder for post processed images"])
     var postProcessTargetDir: String = ""
 
-    @CommandLine.Option(names = ["-postCreatDir"], description = ["Create new directory for postprocessed files; Default: true"])
+    @CommandLine.Option(names = ["-postCreatDir"], description = ["Set to true if a new subdirectory within the post processing folder should be created for every exam file; Default: true"])
     var createNewPostDirForFile: Boolean = true
 
-    @CommandLine.Option(names = ["-additionData"], description = ["Saves additional image data; Default: true"])
+    @CommandLine.Option(names = ["-additionData"], description = ["Saves extracted patient and image information to separate json file; Default: true"])
     var saveInfoFile: Boolean = true
 
-    @CommandLine.Option(names = ["-onlyAdditionData"], description = ["Saves only addtional data, does not export images; Default: true"])
+    @CommandLine.Option(names = ["-onlyAdditionData"], description = ["Saves only additional extracted patient and image information, does not export images; Default: false"])
     var onlyAdditionalData: Boolean = false
 
 
