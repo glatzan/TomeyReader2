@@ -51,17 +51,13 @@ class Settings {
     @CommandLine.Option(names = ["-postCreatDir"], description = ["Set to true if a new subdirectory within the post processing folder should be created for every exam file; Default: true"])
     var createNewPostDirForFile: Boolean = true
 
-    @CommandLine.Option(names = ["-additionData"], description = ["Saves extracted patient and image information to separate json file; Default: true"])
-    var saveInfoFile: Boolean = true
-
-    @CommandLine.Option(names = ["-onlyAdditionData"], description = ["Saves only additional extracted patient and image information, does not export images; Default: false"])
-    var onlyAdditionalData: Boolean = false
-
+    @CommandLine.Option(names = ["-mode"], description = ["Mode: 3 = extract VAA-Images, Eye-Images, Patient-Infos, 2 = extract VAA-Images, 1 = extract Eye-Images, 0 = extract Patient-Infos; Default: 3"])
+    var mode: Int = 3
 
     val freeMemory: Long
         get() = Runtime.getRuntime().freeMemory()
 
-    var maxMemory: Long = 0
+    val maxMemory: Long 
         get() = Runtime.getRuntime().maxMemory()
 
     val runDirectory: String

@@ -24,6 +24,31 @@ class FileTagSettings {
      */
     var imageOffset: Int = 0
 
+    /*
+     *  Offset of first head from char(33)YYYYMMDD.{GUID-HIGH}-{GUID_LOW}-4.TFS.
+     *  From the index of the last s
+     */
+    var eyeImageFirstHeaderOffset = 0
+
+    /**
+     * Header size
+     */
+    var eyeImageHeaderSize=0
+
+    /**
+     * Image height position in header
+     */
+    var eyeImageInHeaderHeightPosition=0
+
+    /**
+     * Image width position in header
+     */
+    var eyeImageInHeaderWidthPosition=0
+
+    /**
+     * Image content offset from byte(03)ccd
+     */
+    var eyeImageContentOffset = 0
 
     var patient: Patient = Patient()
 
@@ -44,4 +69,5 @@ class FileTagSettings {
     final val newLineChar = 10.toChar()
     final val returnChar = 13.toChar()
     final val lineBreak = String(charArrayOf(returnChar, newLineChar))
+    final val escChar = 27.toChar()
 }

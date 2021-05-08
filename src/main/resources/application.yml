@@ -12,6 +12,11 @@ tomey:
   zSizePerPixel: MmPerPixZ=
   examinationDate: Date=
   examinationTime: Time=
+  eyeImageFirstHeaderOffset: 233
+  eyeImageHeaderSize: 284
+  eyeImageInHeaderHeightPosition: 260
+  eyeImageInHeaderWidthPosition: 264
+  eyeImageContentOffset: 260
   patient:
     id: Patient ID=
     firstName: First name=

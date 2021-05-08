@@ -4,12 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.awt.Point
-import java.awt.image.BufferedImage
-import java.awt.image.DataBuffer
-import java.awt.image.DataBufferUShort
-import java.awt.image.Raster
+import java.awt.image.*
 import java.io.File
 import java.io.FileFilter
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.charset.Charset
 import java.nio.file.Files
 import javax.imageio.ImageIO
@@ -42,7 +41,6 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
 //
 //        if(freeMem < fileSize)
 //            throw IllegalStateException("Not enough free memory (Free memory: ${freeMem} MB, file size: ${fileSize} MB), please increase memory (-Xm1024m ")
-
         val bytes = readByteArray(file)
         val imageSettings = getImageSettings(bytes)
 
@@ -55,14 +53,18 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
 
         imageSettings.print()
 
-        val copyArray = ByteArray(imageSettings.imageSize)
-        val imageArray = ShortArray(copyArray.size / imageSettings.bytesPerPixel)
-        val resultIMG = BufferedImage(imageSettings.xResolution, imageSettings.yResolution, BufferedImage.TYPE_USHORT_GRAY)
+        // oct images
+        if (settings.mode >= 2) {
 
-        var imageCount = 0
-        var imageOffset = imageSettings.startOffset
+            val copyArray = ByteArray(imageSettings.imageSize)
+            val imageArray = ShortArray(copyArray.size / imageSettings.bytesPerPixel)
+            val resultIMG = BufferedImage(imageSettings.xResolution, imageSettings.yResolution, BufferedImage.TYPE_USHORT_GRAY)
 
-        if (!settings.onlyAdditionalData) {
+            var imageCount = 0
+            var imageOffset = imageSettings.startOffset
+
+            logger.info("Exporting vaa-images!")
+
             val resultImgs = mutableListOf<File>()
 
             while ((imageOffset + imageSettings.imageSize) < bytes.size && imageCount < imageSettings.imageCount) {
@@ -71,7 +73,7 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
                 val imageBytes = readNextImage(imageOffset, imageSettings.imageSize, bytes, copyArray)
                 byteArrayToImage(imageBytes, imageArray, resultIMG, imageSettings.bytesPerPixel)
 
-                val targetFile = getTargetFile(imageCount, file, ".${fileSettings.targetImageFormat}")
+                val targetFile = getTargetFile(imageCount.toString(), file, ".${fileSettings.targetImageFormat}")
                 resultImgs.add(targetFile)
 
                 writeImage(targetFile, resultIMG)
@@ -81,13 +83,62 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
             }
 
             postProcessor?.run(resultImgs.toTypedArray(), file)
-        } else {
-            logger.info("Exporting only additional data, no image export!")
         }
 
-        if (settings.saveInfoFile || settings.onlyAdditionalData) {
+        // patient info
+        if (settings.mode >= 3 || settings.mode == 0) {
+            logger.info("Exporting patient infos!")
             val infoFile = File(settings.getAbsoluteTargetFolder, file.name.substringBeforeLast(".") + ".json")
             ObjectMapper().writeValue(infoFile, imageSettings)
+        }
+
+        // eye images
+        if (settings.mode >= 3 || settings.mode == 1) {
+            logger.info("Exporting eye-images!")
+            val headers = readEyeImageHeaders(bytes, imageSettings.eyeImageStartOffset)
+            logger.info("${headers.size} eye-images found!")
+
+
+            if (headers.size > 0) {
+                var copyArray = ByteArray(headers[0].imageSize)
+                var resultIMG = BufferedImage(headers[0].width, headers[0].height, BufferedImage.TYPE_BYTE_GRAY)
+
+                var eyeStartOffset = imageSettings.eyeImageStartOffset + fileSettings.eyeImageHeaderSize * headers.size
+
+                println(eyeStartOffset)
+
+                var headerCount = 0
+
+                for (header in headers) {
+                    if (header.imageSize != copyArray.size) {
+                        copyArray = ByteArray(header.imageSize)
+                        resultIMG = BufferedImage(headers[0].width, headers[0].height, BufferedImage.TYPE_BYTE_GRAY)
+                    }
+
+                    if (eyeStartOffset + fileSettings.eyeImageContentOffset+header.imageSize > bytes.size){
+                        logger.error("Could not read all eye-images, file size to small!")
+                        return
+                    }
+
+                    val imageBytes = readNextImage(eyeStartOffset + fileSettings.eyeImageContentOffset, header.imageSize, bytes, copyArray)
+                    val max = imageBytes.max() ?: 255.toByte()
+
+                    // windowing
+                    imageBytes.forEachIndexed { index, b ->
+                        if (b < 0)
+                            imageBytes[index] = max
+                    }
+
+                    resultIMG.data = Raster.createRaster(resultIMG.sampleModel, DataBufferByte(copyArray, copyArray.size) as DataBuffer, Point())
+
+                    val targetFile = getTargetFile("eye-image-$headerCount", file, ".${fileSettings.targetImageFormat}")
+
+                    writeImage(targetFile, resultIMG)
+
+                    headerCount++
+                    eyeStartOffset += fileSettings.eyeImageContentOffset + header.imageSize
+                }
+            }
         }
 
         System.gc()
@@ -103,7 +154,7 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
                 val bitsPerPixel = findTag(fileSettings.bitsPerPixel, fileSettings.lineBreak, byteContent).second.toDouble()
                 (ceil(bitsPerPixel / 8)).toInt()
             } else settings.bytesPerPixel
-            result.startOffset = if (settings.startOffset == -1) findImageStart(byteContent) else settings.startOffset
+
             val xWidthInMM = findTag(fileSettings.xSizeInMM, fileSettings.lineBreak, byteContent).second.toDouble()
             val yWithInMm = findTag(fileSettings.ySizeInMM, fileSettings.lineBreak, byteContent).second.toDouble()
             result.xMMperPixel = xWidthInMM / result.xResolution
@@ -118,6 +169,13 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
             result.patient.birthday = findTag(fileSettings.patient.birthday, fileSettings.lineBreak, byteContent).second
             result.patient.eye = findTag(fileSettings.patient.eye, fileSettings.lineBreak, byteContent).second
             result.patient.commentary = findTag(fileSettings.patient.commentary, fileSettings.lineBreak, byteContent).second
+
+            result.fileName1 = findTag(fileSettings.fileName, fileSettings.lineBreak, byteContent).second
+            result.fileName2 = findTag(fileSettings.fileName2, fileSettings.lineBreak, byteContent).second
+
+            result.startOffset = if (settings.startOffset == -1) findImageStart(byteContent, result.fileName1) else settings.startOffset
+            result.eyeImageStartOffset = findEyeImageStart(byteContent, result.fileName2, result.startOffset)
+
             return result
         } catch (e: Exception) {
             logger.error("Error reading settings: ${e.message}")
@@ -147,17 +205,51 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
         return true
     }
 
+    /**
+     * Read headers for eye images
+     */
+    private fun readEyeImageHeaders(byteContent: ByteArray, startOffset: Int): List<ImageSettings.EyeImage> {
+        var imageCount = 0
+        val headers = mutableListOf<ImageSettings.EyeImage>()
+
+        val tmp = ByteArray(4)
+        val bb: ByteBuffer = ByteBuffer.wrap(tmp)
+        bb.order(ByteOrder.LITTLE_ENDIAN)
+
+        do {
+            System.arraycopy(byteContent, startOffset + fileSettings.eyeImageHeaderSize * imageCount + fileSettings.eyeImageInHeaderHeightPosition, tmp, 0, 4)
+            val height = bb.getInt(0)
+
+            System.arraycopy(byteContent, startOffset + fileSettings.eyeImageHeaderSize * imageCount + fileSettings.eyeImageInHeaderWidthPosition, tmp, 0, 4)
+            val width = bb.getInt(0)
+
+            headers.add(ImageSettings.EyeImage().apply { this.height = height; this.width = width })
+
+            imageCount++
+
+        } while (byteContent[startOffset + fileSettings.eyeImageHeaderSize * imageCount] == 6.toByte())
+
+        return headers
+    }
+
     private fun readByteArray(file: File): ByteArray {
         return Files.readAllBytes(file.toPath())
     }
 
-    private fun findImageStart(byteContent: ByteArray): Int {
-        val fileName = findTag(fileSettings.fileName, fileSettings.lineBreak, byteContent, 0)
-        val imageOffset = findOffset(fileName.second + fileSettings.nullChar + fileSettings.nullChar, byteContent, fileName.first)
+    private fun findImageStart(byteContent: ByteArray, fileName: String): Int {
+        val imageOffset = findOffset(fileName + fileSettings.nullChar + fileSettings.nullChar, byteContent)
         if (imageOffset != -1)
             return imageOffset + fileSettings.imageOffset - 1
         else
             throw IllegalStateException("Image Offset not fount!")
+    }
+
+    private fun findEyeImageStart(byteContent: ByteArray, fileName: String, start_offset: Int = 0): Int {
+        val offset = findOffset(fileSettings.escChar + fileName, byteContent, start_offset)
+        if (offset != -1)
+            return offset + fileSettings.eyeImageFirstHeaderOffset
+        else
+            throw IllegalStateException("Eye-Image Offset not fount!")
     }
 
     private fun findTag(prefix: String, suffix: String, byteContent: ByteArray, startOffset: Int = 0): Pair<Int, String> {
@@ -201,7 +293,7 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
         return -1
     }
 
-    private fun getTargetFile(count: Int, file: File, newExtension: String): File {
+    private fun getTargetFile(fileName: String, file: File, newExtension: String): File {
         var targetFolder = settings.getAbsoluteTargetFolder
 
         if (settings.createNewDirForFile)
@@ -210,7 +302,7 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
         if (!targetFolder.exists())
             targetFolder.mkdirs()
 
-        return File(targetFolder, file.name.substringBeforeLast(".") + "-" + count.toString() + newExtension)
+        return File(targetFolder, file.name.substringBeforeLast(".") + "-" + fileName + newExtension)
     }
 
     private fun readNextImage(offset: Int, size: Int, bytes: ByteArray, copyArray: ByteArray): ByteArray {
@@ -250,8 +342,7 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
 
     companion object {
         fun getFiles(baseFolder: File, fileExtension: String): Array<File> {
-            val t = baseFolder.listFiles()
-            return baseFolder.listFiles(FileFilter { x -> x.name.endsWith(fileExtension) }) ?: emptyArray()
+            return baseFolder.listFiles { x -> x.name.endsWith(fileExtension) } ?: emptyArray()
         }
     }
 
@@ -259,6 +350,10 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
     class ImageSettings {
 
         private val logger: Logger = LoggerFactory.getLogger(this.javaClass)
+
+        var fileName1: String = ""
+
+        var fileName2: String = ""
 
         var xResolution = 0
 
@@ -269,6 +364,8 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
         var bytesPerPixel = 0
 
         var startOffset = 0
+
+        var eyeImageStartOffset = 0
 
         /**
          * Image width mm per pixel
@@ -304,6 +401,7 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
             logger.info("imageCount = $imageCount")
             logger.info("bytesPerPixel = $bytesPerPixel")
             logger.info("startOffset = $startOffset")
+            logger.info("startOffset_EyeImage = $eyeImageStartOffset")
             logger.info("patient.name = ${patient.lastName}")
             logger.info("patient.surname = ${patient.firstName}")
         }
@@ -315,6 +413,15 @@ class FileReader(private val settings: Settings, private val fileSettings: FileT
             var birthday: String = ""
             var eye: String = ""
             var commentary: String = ""
+        }
+
+        class EyeImage {
+            var width = 0
+            var height = 0
+
+            // only one byte per pixel
+            val imageSize: Int
+                get() = width * height
         }
     }
 }

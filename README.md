@@ -48,13 +48,9 @@ java -Xmx2048m -jar tomeyreader-2.0.jar -s $source_dir -t $target_dir -d=false
 * -postCreatDir \{bool\}
     * Set to true if a new subdirectory within the post processing folder should be created for every exam file
     * default true
-* -additionData \{bool\}
-    * Saves extracted patient and image information to separate json file
-    * default true
-* -onlyAdditionData \{bool\}
-    * Saves only additional extracted patient and image information, does not export images
-    * default false
-    
+* -mode \{int\}
+    * Mode: 3 = extract VAA-Images, Eye-Images, Patient-Infos, 2 = extract VAA-Images, 1 = extract Eye-Images, 0 = extract Patient-Infos
+    * default  3
 ## License
  
 The MIT License (MIT)
